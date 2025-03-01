@@ -170,6 +170,7 @@ class Main(customtkinter.CTk):
 
         self.topbar = customtkinter.CTkFrame(self, fg_color=("grey","black"))
         self.topbar.pack(padx=0, pady=0, fill="x")
+
         self.refresh_button = customtkinter.CTkButton(self.topbar, text="Refresh", command=self.refresh_ui)
         self.refresh_button.pack(side="right", padx=10, pady=10)
 
@@ -182,12 +183,13 @@ class Main(customtkinter.CTk):
         self.appearance_mode_optionemenu = customtkinter.CTkOptionMenu(self.topbar, values=["Light", "Dark", "System"], command=self.change_appearance_mode_event)
         self.appearance_mode_optionemenu.pack(side="left", padx=10, pady=10)
 
-
-
         self.frame = customtkinter.CTkScrollableFrame(self, fg_color="transparent")
         self.frame.pack(padx=0, pady=3, fill="both", expand=True)
 
-        
+        # Centering inner content frame
+        self.inner_frame = customtkinter.CTkFrame(self.frame, fg_color="transparent")
+        self.inner_frame.grid(row=0, column=0, sticky="nsew")
+        self.frame.grid_columnconfigure(0, weight=1)
 
         self.frame2 = customtkinter.CTkFrame(self, fg_color="transparent")
         self.frame2.pack(padx=5, pady=0, fill="both", expand=False)
@@ -200,32 +202,31 @@ class Main(customtkinter.CTk):
 
         # Progress Label
         self.progress_label = customtkinter.CTkLabel(self.frame2, text="Start a Download")
-        self.progress_label.grid(row=0, column=0, padx=10, pady=5, sticky="ew")
-
-
+        self.progress_label.grid(row=0, column=0, padx=10, pady=5, sticky="nsew")
 
         # Cancel Button (Initially disabled)
         self.cancel_button = customtkinter.CTkButton(self.frame2, text="🛑", command=self.cancel_download, state="disabled")
-        self.cancel_button.grid(row=0, column=2, padx=10, pady=5)
+        self.cancel_button.grid(row=0, column=2, padx=10, pady=5, sticky="nsew")
+
+        # Ensure widgets expand evenly
+        self.frame2.grid_columnconfigure(0, weight=1)
+        self.frame2.grid_columnconfigure(1, weight=1)
+        self.frame2.grid_columnconfigure(2, weight=1)
 
         # Download manager instance
         self.download_manager = DownloadManager(self.progress_bar, self.progress_label, self.cancel_button)
 
         # Initialize UI
         self.refresh_ui()
-    
-    def change_appearance_mode_event(self, new_appearance_mode: str):
-        customtkinter.set_appearance_mode(new_appearance_mode)
 
     def refresh_ui(self):
         """Clear and refresh the game list UI."""
-        # Clear the existing UI elements in the scrollable frame
-        for widget in self.frame.winfo_children():
+        for widget in self.inner_frame.winfo_children():
             widget.destroy()
 
         game_list = fetch_game_titles(username, password)
         row_num = 0
-        col_num = 0  # Track the column number to create a 4-column layout
+        col_num = 0
 
         for game in game_list:
             game_title = game['title']
@@ -233,50 +234,52 @@ class Main(customtkinter.CTk):
             game_box_art_location = get_box_art(game_id)
 
             game_box_art = customtkinter.CTkImage(light_image=Image.open(game_box_art_location), size=(176, 235), dark_image=Image.open(game_box_art_location))
-            game_box_art_label = customtkinter.CTkLabel(self.frame, image=game_box_art, text="")
-            game_box_art_label.grid(row=row_num, column=col_num, padx=10, pady=5, sticky="ew")
+            game_box_art_label = customtkinter.CTkLabel(self.inner_frame, image=game_box_art, text="")
+            game_box_art_label.grid(row=row_num, column=col_num, padx=10, pady=5, sticky="nsew")
 
-            # Place the game title under the game box art
-            game_label = customtkinter.CTkLabel(self.frame, text=game_title)
-            game_label.grid(row=row_num + 1, column=col_num, padx=10, pady=5, sticky="ew")
+            game_label = customtkinter.CTkLabel(self.inner_frame, text=game_title)
+            game_label.grid(row=row_num + 1, column=col_num, padx=10, pady=5, sticky="nsew")
 
-            # Add buttons under the game image and title
-            if is_game_downloaded(game_id):  # Check if the game is downloaded
+            if is_game_downloaded(game_id):
                 pass
             else:
-                download_button = customtkinter.CTkButton(self.frame, text="Download", command=lambda gid=game_id: self.start_download(gid))
-                download_button.grid(row=row_num + 2, column=col_num, padx=10, pady=5, sticky="ew")
+                download_button = customtkinter.CTkButton(self.inner_frame, text="Download", command=lambda gid=game_id: self.start_download(gid))
+                download_button.grid(row=row_num + 2, column=col_num, padx=10, pady=5, sticky="nsew")
 
-            if is_game_installed(game_id):  # Check if the game is installed (downloaded and unpacked)
-                add_to_library_button = customtkinter.CTkButton(self.frame, text="Add to Steam", command=lambda gid=game_id: self.add_to_library(gid))
-                add_to_library_button.grid(row=row_num + 2, column=col_num, padx=10, pady=5, sticky="ew")
+            if is_game_installed(game_id):
+                add_to_library_button = customtkinter.CTkButton(self.inner_frame, text="Add to Steam", command=lambda gid=game_id: self.add_to_library(gid))
+                add_to_library_button.grid(row=row_num + 2, column=col_num, padx=10, pady=5, sticky="nsew")
 
-                exe_list = get_exes(game_id) or []  # Prevents NoneType issues
+                exe_list = get_exes(game_id) or []
                 exe_selection_dropdown = customtkinter.CTkComboBox(
-                    self.frame,
-                    values=["Select an EXE"] + exe_list  # Concatenating lists
+                    self.inner_frame,
+                    values=["Select an EXE"] + exe_list
                 )
-                if get_selected_exe(game_id):
-                    exe_selection_dropdown.set(get_selected_exe(game_id))
-                else:
-                    exe_selection_dropdown.set("Select an EXE")
-                exe_selection_dropdown.grid(row=row_num + 3, column=col_num, padx=10, pady=5, sticky="ew")
+                exe_selection_dropdown.set(get_selected_exe(game_id) or "Select an EXE")
+                exe_selection_dropdown.grid(row=row_num + 3, column=col_num, padx=10, pady=5, sticky="nsew")
 
-                uninstall_button = customtkinter.CTkButton(self.frame, text="Uninstall", command=lambda gid=game_id: self.delete_download_and_refresh(gid))
-                uninstall_button.grid(row=row_num + 4, column=col_num, padx=10, pady=5, sticky="ew")
-            elif is_game_downloaded(game_id) and not is_game_installed(game_id):  # Check if the game is downloaded but not installed
-                unpack_button = customtkinter.CTkButton(self.frame, text="Unpack", command=lambda gid=game_id: self.unpack_and_refresh(gid))
-                unpack_button.grid(row=row_num + 2, column=col_num, padx=10, pady=5, sticky="ew")
+                uninstall_button = customtkinter.CTkButton(self.inner_frame, text="Uninstall", command=lambda gid=game_id: self.delete_download_and_refresh(gid))
+                uninstall_button.grid(row=row_num + 4, column=col_num, padx=10, pady=5, sticky="nsew")
 
-                delete_button = customtkinter.CTkButton(self.frame, text="Delete DL", command=lambda gid=game_id: self.uninstall_and_refresh(gid))
-                delete_button.grid(row=row_num + 3, column=col_num, padx=10, pady=5, sticky="ew")
+            elif is_game_downloaded(game_id) and not is_game_installed(game_id):
+                unpack_button = customtkinter.CTkButton(self.inner_frame, text="Unpack", command=lambda gid=game_id: self.unpack_and_refresh(gid))
+                unpack_button.grid(row=row_num + 2, column=col_num, padx=10, pady=5, sticky="nsew")
 
-            # Increment column number and check if it exceeds 3 (4 columns)
+                delete_button = customtkinter.CTkButton(self.inner_frame, text="Delete DL", command=lambda gid=game_id: self.uninstall_and_refresh(gid))
+                delete_button.grid(row=row_num + 3, column=col_num, padx=10, pady=5, sticky="nsew")
+
             col_num += 1
             if col_num > 4:
                 col_num = 0
-                row_num += 5  # Move to the next row, with space for all items
+                row_num += 5
 
+        # Ensure the columns are evenly distributed
+        for i in range(5):
+            self.inner_frame.grid_columnconfigure(i, weight=1)
+
+ 
+    def change_appearance_mode_event(self, new_appearance_mode: str):
+        customtkinter.set_appearance_mode(new_appearance_mode)
     def unpack_and_refresh(self, gid):
         """Start unpacking in a separate thread and refresh UI after completion."""
         thread = threading.Thread(target=self.unpack_game_thread, args=(gid,))
