@@ -13,7 +13,7 @@ import os
 import threading
 import aiohttp
 from pypdl import Pypdl  # Ensure this import is at the top
-
+import tkinter as tk
 
 
 appname = 'Smoke Launcher'
@@ -182,9 +182,10 @@ class Main(customtkinter.CTk):
 
         self.appearance_mode_optionemenu = customtkinter.CTkOptionMenu(self.topbar, values=["Light", "Dark", "System"], command=self.change_appearance_mode_event)
         self.appearance_mode_optionemenu.pack(side="left", padx=10, pady=10)
+        self.appearance_mode_optionemenu.set(config['SETTINGS'].get('apperance'))
 
         self.frame = customtkinter.CTkScrollableFrame(self, fg_color="transparent")
-        self.frame.pack(padx=0, pady=3, fill="both", expand=True)
+        self.frame.pack(padx=0, pady=0, fill="both", expand=True)
 
         # Centering inner content frame
         self.inner_frame = customtkinter.CTkFrame(self.frame, fg_color="transparent")
@@ -192,7 +193,7 @@ class Main(customtkinter.CTk):
         self.frame.grid_columnconfigure(0, weight=1)
 
         self.frame2 = customtkinter.CTkFrame(self, fg_color="transparent")
-        self.frame2.pack(padx=5, pady=0, fill="both", expand=False)
+        self.frame2.pack(padx=0, pady=0, fill="both", expand=False)
         self.frame2.grid_columnconfigure(1, weight=1)
 
         # Progress Bar
@@ -209,9 +210,9 @@ class Main(customtkinter.CTk):
         self.cancel_button.grid(row=0, column=2, padx=10, pady=5, sticky="nsew")
 
         # Ensure widgets expand evenly
-        self.frame2.grid_columnconfigure(0, weight=1)
+        # self.frame2.grid_columnconfigure(0, weight=1)
         self.frame2.grid_columnconfigure(1, weight=1)
-        self.frame2.grid_columnconfigure(2, weight=1)
+        # self.frame2.grid_columnconfigure(2, weight=1)
 
         # Download manager instance
         self.download_manager = DownloadManager(self.progress_bar, self.progress_label, self.cancel_button)
@@ -233,40 +234,57 @@ class Main(customtkinter.CTk):
             game_id = game['id']
             game_box_art_location = get_box_art(game_id)
 
+            self.game_frame = customtkinter.CTkFrame(self.inner_frame)
+            self.game_frame.grid(row=row_num, column=col_num, padx=10, pady=5, sticky="ns")
+            self.game_frame.grid_columnconfigure(0, weight=1)
+            self.game_frame.grid_columnconfigure(1, weight=1)
+            self.game_frame.grid_columnconfigure(2, weight=1)
+
             game_box_art = customtkinter.CTkImage(light_image=Image.open(game_box_art_location), size=(176, 235), dark_image=Image.open(game_box_art_location))
-            game_box_art_label = customtkinter.CTkLabel(self.inner_frame, image=game_box_art, text="")
-            game_box_art_label.grid(row=row_num, column=col_num, padx=10, pady=5, sticky="nsew")
+            game_box_art_label = customtkinter.CTkLabel(self.game_frame, image=game_box_art, text="")
+            game_box_art_label.grid(row=0, column=0, padx=10, pady=5, sticky="nsew",columnspan=3)
+            game_label = customtkinter.CTkLabel(self.game_frame, text=game_title, wraplength=176)
+            game_label.grid(row=1, column=0, padx=10, pady=5, sticky="nsew",columnspan=3)
 
-            game_label = customtkinter.CTkLabel(self.inner_frame, text=game_title)
-            game_label.grid(row=row_num + 1, column=col_num, padx=10, pady=5, sticky="nsew")
 
+            button_size = 20
+            download_button = customtkinter.CTkButton(self.game_frame, text="DL", command=lambda gid=game_id: self.start_download(gid), width=button_size, height=button_size, corner_radius=button_size // 2)
+            download_button.grid(row=2, column=0, padx=2, pady=2)
+            dl_tooltip = ToolTip(download_button, "Download Game")
             if is_game_downloaded(game_id):
-                pass
-            else:
-                download_button = customtkinter.CTkButton(self.inner_frame, text="Download", command=lambda gid=game_id: self.start_download(gid))
-                download_button.grid(row=row_num + 2, column=col_num, padx=10, pady=5, sticky="nsew")
+                download_button.configure(state="disabled")
+
 
             if is_game_installed(game_id):
-                add_to_library_button = customtkinter.CTkButton(self.inner_frame, text="Add to Steam", command=lambda gid=game_id: self.add_to_library(gid))
-                add_to_library_button.grid(row=row_num + 2, column=col_num, padx=10, pady=5, sticky="nsew")
+                add_to_library_button = customtkinter.CTkButton(self.game_frame, text="+S", command=lambda gid=game_id: self.add_to_library(gid), width=button_size, height=button_size, corner_radius=button_size // 2)
+                add_to_library_button.grid(row=2, column=1, padx=2, pady=2)  # Moved to column 1
+                steam_tooltip = ToolTip(add_to_library_button, "Add this game to your Steam library")
+
 
                 exe_list = get_exes(game_id) or []
                 exe_selection_dropdown = customtkinter.CTkComboBox(
-                    self.inner_frame,
+                    self.game_frame,
                     values=["Select an EXE"] + exe_list
                 )
                 exe_selection_dropdown.set(get_selected_exe(game_id) or "Select an EXE")
-                exe_selection_dropdown.grid(row=row_num + 3, column=col_num, padx=10, pady=5, sticky="nsew")
+                exe_selection_dropdown.grid(row=3, column=0, columnspan=3, padx=2, pady=5, sticky="nsew")
 
-                uninstall_button = customtkinter.CTkButton(self.inner_frame, text="Uninstall", command=lambda gid=game_id: self.delete_download_and_refresh(gid))
-                uninstall_button.grid(row=row_num + 4, column=col_num, padx=10, pady=5, sticky="nsew")
+                uninstall_button = customtkinter.CTkButton(self.game_frame, text="U/I", command=lambda gid=game_id: self.delete_download_and_refresh(gid), width=button_size, height=button_size, corner_radius=button_size // 2)
+                uninstall_button.grid(row=2, column=2, padx=2, pady=2)  # Moved to column 2
+                uninstall_button_tooltip = ToolTip(uninstall_button, "Uninstall Game")
+
 
             elif is_game_downloaded(game_id) and not is_game_installed(game_id):
-                unpack_button = customtkinter.CTkButton(self.inner_frame, text="Unpack", command=lambda gid=game_id: self.unpack_and_refresh(gid))
-                unpack_button.grid(row=row_num + 2, column=col_num, padx=10, pady=5, sticky="nsew")
+                unpack_button = customtkinter.CTkButton(self.game_frame, text="U/P", command=lambda gid=game_id: self.unpack_and_refresh(gid), width=button_size, height=button_size, corner_radius=button_size // 2)
+                unpack_button.grid(row=2, column=0, padx=2, pady=2)
+                unpack_button_tooltip = ToolTip(unpack_button, "Unpack Game")
 
-                delete_button = customtkinter.CTkButton(self.inner_frame, text="Delete DL", command=lambda gid=game_id: self.uninstall_and_refresh(gid))
-                delete_button.grid(row=row_num + 3, column=col_num, padx=10, pady=5, sticky="nsew")
+
+                delete_button = customtkinter.CTkButton(self.game_frame, text="DEL/DL", command=lambda gid=game_id: self.uninstall_and_refresh(gid), width=button_size, height=button_size, corner_radius=button_size // 2)
+                delete_button.grid(row=2, column=1, padx=2, pady=2)  # Moved to column 1
+                delete_button_tooltip = ToolTip(delete_button, "Delete Download")
+
+
 
             col_num += 1
             if col_num > 4:
@@ -280,6 +298,13 @@ class Main(customtkinter.CTk):
  
     def change_appearance_mode_event(self, new_appearance_mode: str):
         customtkinter.set_appearance_mode(new_appearance_mode)
+        #write to settings
+        config = configparser.ConfigParser()
+        config.read(settings_file)
+        config.set('SETTINGS', 'apperance', new_appearance_mode)
+        with open(settings_file, 'w') as configfile:
+            config.write(configfile)
+
     def unpack_and_refresh(self, gid):
         """Start unpacking in a separate thread and refresh UI after completion."""
         thread = threading.Thread(target=self.unpack_game_thread, args=(gid,))
@@ -439,6 +464,33 @@ class DownloadManager:
         else:
             print("No active download to cancel.")
 
+
+class ToolTip:
+    def __init__(self, widget, text, delay=500):
+        self.widget = widget
+        self.text = text
+        self.delay = delay
+        self.tooltip = None
+        self.widget.bind("<Enter>", self.schedule_tooltip)
+        self.widget.bind("<Leave>", self.hide_tooltip)
+
+    def schedule_tooltip(self, event):
+        # Schedule the tooltip to show after the delay
+        self.tooltip_after = self.widget.after(self.delay, self.show_tooltip, event)
+
+    def show_tooltip(self, event):
+        self.tooltip = tk.Toplevel(self.widget)
+        self.tooltip.wm_overrideredirect(True)
+        self.tooltip.wm_geometry(f"+{event.x_root + 15}+{event.y_root + 25}")
+        label = tk.Label(self.tooltip, text=self.text, relief="solid", borderwidth=0)  # No background
+        label.pack()
+
+    def hide_tooltip(self, event):
+        if self.tooltip:
+            self.tooltip.destroy()
+            self.tooltip = None
+        if hasattr(self, 'tooltip_after'):
+            self.widget.after_cancel(self.tooltip_after)  # Cancel the tooltip display if mouse leaves early
 
 
 

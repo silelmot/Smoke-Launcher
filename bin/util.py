@@ -114,6 +114,7 @@ def fetch_game_info(username, password, gid):
     params = {}
 
     response = requests.get(url, params=params, headers=headers)
+    print(response)
     if response.status_code == 200:
         data = response.json()
         # Cache the response
@@ -319,8 +320,6 @@ def delete_download(gid):
 
 
 import requests
-
-import requests
 from requests.auth import HTTPBasicAuth
 
 import os
@@ -381,5 +380,3 @@ def get_selected_exe(gid):
                 if line.startswith('Executable='):
                     return line.split('=')[1].strip()
 
-        
-print(get_selected_exe("1"))
