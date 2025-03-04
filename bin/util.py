@@ -23,7 +23,11 @@ import vdf
 import struct
 import sys
 from tkinter import messagebox,filedialog
-
+import requests
+from requests.auth import HTTPBasicAuth
+import os
+import requests
+from requests.auth import HTTPBasicAuth
 
 
 #___________Main Settings___________
@@ -83,17 +87,29 @@ DB_PATH = os.path.join(CACHE_DIR, "cache.db")
 CACHE_EXPIRY_TIME = 60 * 60  # 1 hour
 
 
-def is_online():
+# def is_online():
+#     try:
+#         response = requests.get(url)
+#         if response.status_code == 200:
+#             logging.debug("ONLINE")
+#             return True
+#     except Exception:
+#         logging.debug("OFFLINE")
+#         return False
+
+def check_url_health(passedurl):
     try:
-        response = requests.get(url)
+        response = requests.get(f'{passedurl}/api/health')
         if response.status_code == 200:
-            logging.debug("ONLINE")
-            return True
-    except Exception:
-        logging.debug("OFFLINE")
-        return False
+            logging.debug("CODE 200 on url health check")
+            json_data = response.json()
+            if "status" in json_data and json_data["status"] == "HEALTHY":
+                return True
+    except Exception as e:
+        logging.debug(f"An error occurred: {e}")
     
-online_status = is_online()
+    return False    
+online_status = check_url_health(url)
 
 
 
@@ -177,18 +193,7 @@ def is_cache_expired(timestamp):
     current_time = int(time.time())
     return current_time - timestamp > CACHE_EXPIRY_TIME
 
-def check_url_health(passedurl):
-    try:
-        response = requests.get(f'{passedurl}/api/health')
-        if response.status_code == 200:
-            logging.debug("CODE 200 on url health check")
-            json_data = response.json()
-            if "status" in json_data and json_data["status"] == "HEALTHY":
-                return True
-    except Exception as e:
-        logging.debug(f"An error occurred: {e}")
-    
-    return False
+
 
 def check_config(config_file):
     print(f"Checking config file: {config_file}")
@@ -205,22 +210,22 @@ def check_config(config_file):
         return False
     return True
 
-def fetch_game_titles(username, password, online_status=True):
+def fetch_game_titles(username, password,):
     gid = "game_titles"
     cached_data = load_cache(gid)
     
     encoded_credentials = base64.b64encode(f"{username}:{password}".encode()).decode()
     
-    if cached_data:
-        logging.debug("GV Client Online. Using cached game titles.")
+    # if cached_data:
+    #     logging.debug("GV Client Online. Using cached game titles.")
     
-    if not online_status:
+    if online_status == False:
         logging.debug("GV Client Offline. Using cached game titles.")
         return cached_data
     
     # API Call
     headers = {'accept': 'application/json', 'Authorization': f'Basic {encoded_credentials}'}
-    params = {'sortBy': 'title:ASC'}
+    params = {'sortBy': 'title:ASC', 'type': ''}
     try:
         response = requests.get(config["SETTINGS"].get("url") + "/api/games", params=params, headers=headers)
         response.raise_for_status()  # Raise an exception for non-200 status codes
@@ -237,8 +242,10 @@ def fetch_game_titles(username, password, online_status=True):
 def is_game_downloaded(gid):
     install_location = config['SETTINGS'].get('install_location')
     game_name = fetch_game_info(USERNAME,PASSWORD,gid)['title']
-    download_path = os.path.join(install_location, f"Downloads/({gid}){game_name}.zip")
+    filetype = fetch_game_info(USERNAME, PASSWORD, gid)['file_path'].split(".")[-1]
+    download_path = os.path.join(install_location, f"Downloads/({gid}){game_name}.{filetype}")
     return os.path.exists(download_path)
+
 
 def unpack_game(gid):
     """Handles unpacking without UI updates inside."""
@@ -325,52 +332,64 @@ def delete_download(gid):
     os.remove(download_path)
 
 
-import requests
-from requests.auth import HTTPBasicAuth
-
-import os
-import requests
-from requests.auth import HTTPBasicAuth
-
 def get_box_art(gid):
-    # Fetch the game info to get the image metadata
-    game_info = fetch_game_info(USERNAME, PASSWORD, gid)
-    
-    # Extract the image name and ID
-    image_name = game_info['provider_metadata'][0]['cover']['file_path'].split('/')[-1]
-    image_id = game_info['provider_metadata'][0]['cover']['id']
-    
-    print(image_name)
-    print(image_id)
-    
-    # Define the cache directory and create subdirectories if they don't exist
-    CACHE_DIR = f"{settings_location}/cache"
-    image_dir = CACHE_DIR  # Create a directory for the specific GID
-    os.makedirs(image_dir, exist_ok=True)  # Make sure the directory exists
-    
-    # Define the full path for saving the image (with extension)
-    image_path = os.path.join(image_dir, image_name)
-    
-    # Check if the image already exists in the cache
-    if os.path.exists(image_path):
-        print(f"Image already exists at {image_path}")
-        return image_path
-    
-    # Prepare the URL and headers for fetching the image
-    url = f"{config['SETTINGS'].get('url')}/api/media/{image_id}"  # Adjust endpoint to match API documentation
-    headers = {'accept': 'image/*'}  # Accept header changed to image/*
-    
-    # Make the GET request to fetch the image with basic auth
-    response = requests.get(url, headers=headers, auth=HTTPBasicAuth(USERNAME, PASSWORD))
-    
-    if response.status_code == 200:
-        # Save the image to the specified location
-        with open(image_path, 'wb') as img_file:
-            img_file.write(response.content)
-        print(f"Image saved as {image_path}")
-        return image_path
-    else:
-        print(f"Failed to fetch image. Status code: {response.status_code}")
+    try:
+        # Fetch the game info to get the image metadata
+        game_info = fetch_game_info(USERNAME, PASSWORD, gid)
+
+        # Check if 'provider_metadata' exists and contains at least one item
+        provider_metadata = game_info.get('provider_metadata', [])
+        
+        if not provider_metadata or 'cover' not in provider_metadata[0]:
+            print("No cover art found, returning default image.")
+            default_image_path = os.path.join('bin', 'img', 'not_found.jpg')
+            return default_image_path
+        
+        # Extract cover info if it exists
+        cover_info = provider_metadata[0].get('cover', {})
+        if 'file_path' in cover_info and 'id' in cover_info:
+            image_name = cover_info['file_path'].split('/')[-1]
+            image_id = cover_info['id']
+
+            # Define the cache directory and create subdirectories if they don't exist
+            CACHE_DIR = f"{settings_location}/cache"
+            image_dir = CACHE_DIR  # Create a directory for the specific GID
+            os.makedirs(image_dir, exist_ok=True)  # Make sure the directory exists
+
+            # Define the full path for saving the image (with extension)
+            image_path = os.path.join(image_dir, image_name)
+
+            # Check if the image already exists in the cache
+            if os.path.exists(image_path):
+                print(f"Image already exists at {image_path}")
+                return image_path
+
+            # Prepare the URL and headers for fetching the image
+            url = f"{config['SETTINGS'].get('url')}/api/media/{image_id}"  # Adjust endpoint to match API documentation
+            headers = {'accept': 'image/*'}  # Accept header changed to image/*
+
+            # Make the GET request to fetch the image with basic auth
+            response = requests.get(url, headers=headers, auth=HTTPBasicAuth(USERNAME, PASSWORD))
+
+            if response.status_code == 200:
+                # Save the image to the specified location
+                with open(image_path, 'wb') as img_file:
+                    img_file.write(response.content)
+                print(f"Image saved as {image_path}")
+                return image_path
+            else:
+                print(f"Failed to fetch image. Status code: {response.status_code}")
+                raise Exception("Image fetch failed")
+        else:
+            print("Cover data is incomplete.")
+            raise Exception("Cover data not found.")
+
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        # Return the default image path if fetching the image fails
+        default_image_path = os.path.join('bin', 'img', 'not_found.jpg')
+        print(f"Returning default image: {default_image_path}")
+        return default_image_path
     
 def get_selected_exe(gid):
     install_location = config['SETTINGS'].get('install_location')

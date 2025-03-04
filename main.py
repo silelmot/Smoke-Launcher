@@ -215,8 +215,7 @@ class Main(customtkinter.CTk):
         # self.frame2.grid_columnconfigure(2, weight=1)
 
         # Download manager instance
-        self.download_manager = DownloadManager(self.progress_bar, self.progress_label, self.cancel_button)
-
+        self.download_manager = DownloadManager(self.progress_bar, self.progress_label, self.cancel_button, self.refresh_ui)
         # Initialize UI
         self.refresh_ui()
 
@@ -365,13 +364,14 @@ class Main(customtkinter.CTk):
 
 
 class DownloadManager:
-    def __init__(self, progress_bar, progress_label, cancel_button):
+    def __init__(self, progress_bar, progress_label, cancel_button, refresh_callback):
         self.progress_bar = progress_bar
         self.progress_label = progress_label
         self.cancel_button = cancel_button
         self.current_download = None
         self.cancel_requested = False  
         self.download_name = ""  # Store the name of the download
+        self.refresh_callback = refresh_callback  # Store the UI refresh function
 
     def update_progress(self):
         """Periodically update the progress bar during the download."""
@@ -396,6 +396,7 @@ class DownloadManager:
             self.progress_bar.after(500, self.update_progress)  # Keep checking progress
         else:
             self._update_ui(f"{self.download_name}: Download Complete!", 1.0, disable_button=True)
+            self.refresh_callback()
 
     def _update_ui(self, label_text, progress_value, disable_button=False):
         """Safely update UI elements from the main thread."""
