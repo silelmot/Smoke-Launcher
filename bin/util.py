@@ -18,6 +18,12 @@ import requests
 from io import BytesIO
 from PIL import Image
 import logging
+import os
+import vdf
+import struct
+import sys
+from tkinter import messagebox,filedialog
+
 
 
 #___________Main Settings___________
@@ -380,3 +386,114 @@ def get_selected_exe(gid):
                 if line.startswith('Executable='):
                     return line.split('=')[1].strip()
 
+def get_steam_path():
+    """Finds Steam's installation path based on the OS."""
+    if sys.platform == "win32":
+        base_path = os.path.join(os.getenv("ProgramFiles(x86)"), "Steam")  # Default Windows Steam path
+    elif sys.platform == "linux":
+        base_path = os.path.expanduser("~/.steam/steam")
+    else:
+        raise OSError("Unsupported operating system")
+
+    if not os.path.exists(base_path):
+        raise FileNotFoundError("Steam installation not found.")
+    
+    return base_path
+
+def get_steam_user_id():
+    """Finds the first Steam user ID directory."""
+    steam_path = get_steam_path()
+    userdata_path = os.path.join(steam_path, "userdata")
+
+    if not os.path.exists(userdata_path):
+        raise FileNotFoundError("Steam userdata directory not found.")
+
+    user_ids = [d for d in os.listdir(userdata_path) if d.isdigit()]
+
+    if not user_ids:
+        raise ValueError("No Steam user IDs found.")
+
+    return user_ids[0]  # Return the first found user ID
+
+def generate_app_id(exe_path, app_name):
+    """Generates a Steam app ID for the non-Steam game."""
+    sha = struct.unpack('<I', struct.pack('<I', sum(map(ord, exe_path + app_name))))[0]
+    return sha | 0x80000000  # Ensure it's in the non-Steam game range
+
+def add_non_steam_game(name, exe, start_dir=None, icon="", launch_options=""):
+    if exe == "Select an EXE":
+        print(exe)
+        print(name)
+        messagebox.showerror("Error", "Please select a valid executable.")
+        return
+    """Adds a non-Steam game shortcut to Steam and enables Proton (Linux) or Compatibility (Windows)."""
+    user_id = get_steam_user_id()
+    steam_path = get_steam_path()
+    shortcuts_path = os.path.join(steam_path, f"userdata/{user_id}/config/shortcuts.vdf")
+    localconfig_path = os.path.join(steam_path, f"userdata/{user_id}/config/localconfig.vdf")
+
+    # Load existing shortcuts
+    if os.path.exists(shortcuts_path):
+        with open(shortcuts_path, "rb") as f:
+            shortcuts = vdf.binary_load(f)
+    else:
+        shortcuts = {"shortcuts": {}}
+
+    next_id = len(shortcuts["shortcuts"])
+    app_id = generate_app_id(exe, name)
+
+    shortcut_entry = {
+        "appid": str(app_id),
+        "appname": name,
+        "exe": f'"{exe}"',
+        "StartDir": f'"{start_dir or os.path.dirname(exe)}"',
+        "icon": f'"{icon}"',
+        "ShortcutPath": "",
+        "LaunchOptions": f'"{launch_options}"',
+        "IsHidden": 0,
+        "AllowDesktopConfig": 1,
+        "OpenVR": 0,
+        "Devkit": 0,
+        "DevkitGameID": "",
+        "LastPlayTime": 0,
+        "tags": {},
+    }
+
+    shortcuts["shortcuts"][str(next_id)] = shortcut_entry
+
+    # Save back to shortcuts.vdf
+    with open(shortcuts_path, "wb") as f:
+        vdf.binary_dump(shortcuts, f)
+
+    print(f"Added '{name}' to Steam.")
+
+    # Enable Proton on Linux
+    if sys.platform == "linux":
+        if os.path.exists(localconfig_path):
+            with open(localconfig_path, "rb") as f:
+                localconfig = vdf.binary_load(f)
+        else:
+            localconfig = {"UserLocalConfigStore": {"Software": {"Valve": {"Steam": {}}}}}
+
+        localconfig["UserLocalConfigStore"]["Software"]["Valve"]["Steam"].setdefault("CompatToolMapping", {})
+        localconfig["UserLocalConfigStore"]["Software"]["Valve"]["Steam"]["CompatToolMapping"][str(app_id)] = {
+            "name": "proton_experimental",
+            "config": "",
+            "priority": "250",
+        }
+
+        # Save changes
+        with open(localconfig_path, "wb") as f:
+            vdf.binary_dump(localconfig, f)
+
+        print(f"Enabled Proton for '{name}'. Restart Steam for changes to take effect.")
+
+    elif sys.platform == "win32":
+        print(f"'{name}' added on Windows. You may need to set compatibility manually in Steam.")
+
+def real_add_non_steam_game(game_id,path):
+    game_info = fetch_game_info(USERNAME, PASSWORD, game_id)
+    add_non_steam_game(game_info['title'], path)
+
+# Example usage:
+# add_non_steam_game("My Game", "C:\\Users\\Tyler\\Downloads\\VirtualBox-7.1.6-167084-Win.exe")

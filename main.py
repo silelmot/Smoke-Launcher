@@ -256,16 +256,23 @@ class Main(customtkinter.CTk):
 
 
             if is_game_installed(game_id):
-                add_to_library_button = customtkinter.CTkButton(self.game_frame, text="+S", command=lambda gid=game_id: self.add_to_library(gid), width=button_size, height=button_size, corner_radius=button_size // 2)
-                add_to_library_button.grid(row=2, column=1, padx=2, pady=2)  # Moved to column 1
-                steam_tooltip = ToolTip(add_to_library_button, "Add this game to your Steam library")
-
-
                 exe_list = get_exes(game_id) or []
                 exe_selection_dropdown = customtkinter.CTkComboBox(
                     self.game_frame,
                     values=["Select an EXE"] + exe_list
                 )
+                add_to_library_button = customtkinter.CTkButton(
+                    self.game_frame, 
+                    text="+S", 
+                    command=lambda gid=game_id, dropdown=exe_selection_dropdown: real_add_non_steam_game(gid, dropdown.get()), 
+                    width=button_size, 
+                    height=button_size, 
+                    corner_radius=button_size // 2) 
+                add_to_library_button.grid(row=2, column=1, padx=2, pady=2)  # Moved to column 1
+                steam_tooltip = ToolTip(add_to_library_button, "Add this game to your Steam library")
+
+
+
                 exe_selection_dropdown.set(get_selected_exe(game_id) or "Select an EXE")
                 exe_selection_dropdown.grid(row=3, column=0, columnspan=3, padx=2, pady=5, sticky="nsew")
 
