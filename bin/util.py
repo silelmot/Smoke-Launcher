@@ -3,30 +3,21 @@ import requests
 import configparser
 import os
 import json
-from platformdirs import *
 import logging
 import sqlite3
 import time
 import keyring
 import patoolib
-from pathlib import Path
-import subprocess
-import shutil
-import os
-import base64
-import requests
-from io import BytesIO
-from PIL import Image
-import logging
-import os
-import vdf
 import struct
 import sys
-from tkinter import messagebox,filedialog
-import requests
-from requests.auth import HTTPBasicAuth
-import os
-import requests
+import shutil
+import subprocess
+from platformdirs import *
+from pathlib import Path
+from io import BytesIO
+from PIL import Image
+import vdf
+from tkinter import messagebox, filedialog
 from requests.auth import HTTPBasicAuth
 
 
@@ -85,6 +76,13 @@ os.makedirs(settings_location, exist_ok=True)
 DB_PATH = os.path.join(CACHE_DIR, "cache.db")
 # Cache Expiry Time (in seconds)
 CACHE_EXPIRY_TIME = 60 * 60  # 1 hour
+
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and PyInstaller """
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.abspath(relative_path)
 
 
 # def is_online():
@@ -342,7 +340,7 @@ def get_box_art(gid):
         
         if not provider_metadata or 'cover' not in provider_metadata[0]:
             print("No cover art found, returning default image.")
-            default_image_path = os.path.join('bin', 'img', 'not_found.jpg')
+            default_image_path = resource_path("bin/img/not_found.jpg")
             return default_image_path
         
         # Extract cover info if it exists
@@ -387,7 +385,7 @@ def get_box_art(gid):
     except Exception as e:
         print(f"Error occurred: {e}")
         # Return the default image path if fetching the image fails
-        default_image_path = os.path.join('bin', 'img', 'not_found.jpg')
+        default_image_path = resource_path("bin/img/not_found.jpg")
         print(f"Returning default image: {default_image_path}")
         return default_image_path
     
