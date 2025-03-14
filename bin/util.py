@@ -486,24 +486,24 @@ def add_non_steam_game(name, exe, start_dir=None, icon="", launch_options=""):
 
     # Enable Proton on Linux
     if sys.platform == "linux":
-        if os.path.exists(localconfig_path):
-            with open(localconfig_path, "rb") as f:
-                localconfig = vdf.binary_load(f)
-        else:
-            localconfig = {"UserLocalConfigStore": {"Software": {"Valve": {"Steam": {}}}}}
+        # if os.path.exists(localconfig_path):
+        #     with open(localconfig_path, "rb") as f:
+        #         localconfig = vdf.binary_load(f)
+        # else:
+        #     localconfig = {"UserLocalConfigStore": {"Software": {"Valve": {"Steam": {}}}}}
 
-        localconfig["UserLocalConfigStore"]["Software"]["Valve"]["Steam"].setdefault("CompatToolMapping", {})
-        localconfig["UserLocalConfigStore"]["Software"]["Valve"]["Steam"]["CompatToolMapping"][str(app_id)] = {
-            "name": "proton_experimental",
-            "config": "",
-            "priority": "250",
-        }
+        # localconfig["UserLocalConfigStore"]["Software"]["Valve"]["Steam"].setdefault("CompatToolMapping", {})
+        # localconfig["UserLocalConfigStore"]["Software"]["Valve"]["Steam"]["CompatToolMapping"][str(app_id)] = {
+        #     "name": "proton_experimental",
+        #     "config": "",
+        #     "priority": "250",
+        # }
 
-        # Save changes
-        with open(localconfig_path, "wb") as f:
-            vdf.binary_dump(localconfig, f)
+        # # Save changes
+        # with open(localconfig_path, "wb") as f:
+        #     vdf.binary_dump(localconfig, f)
 
-        print(f"Enabled Proton for '{name}'. Restart Steam for changes to take effect.")
+        print(f"ADDED '{name}' to Steam. Restart Steam for changes to take effect.")
 
     elif sys.platform == "win32":
         print(f"'{name}' added on Windows. You may need to set compatibility manually in Steam.")
