@@ -11,4 +11,6 @@ pip -r requirements.txt
 python main.py
 ```
 
+You can find the newest builds [here](https://github.com/Toylerrr/Smoke-Launcher/actions/workflows/Pyinstaller.yml) 
+
 <sup><sub>Every crackpipe needs smoke</sub></sup>
