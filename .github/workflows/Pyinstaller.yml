@@ -1,0 +1,56 @@
+name: Build Smoke_Launcher for Windows & Steam Deck
+
+on:
+  workflow_dispatch:  # Only runs when manually triggered
+
+jobs:
+  windows-build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.2'
+
+      - name: Install Dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Build Windows Executable
+        run: |
+          pyinstaller --add-data "bin\img;bin\img" --name "Smoke_Launcher" --windowed main.py
+
+      - name: Upload Windows Executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: Smoke_Launcher-Windows
+          path: dist/Smoke_Launcher/*  # Includes _internal
+
+  steamdeck-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.2'
+
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pyqt5  # Add dependencies if needed
+          pip install -r requirements.txt pyinstaller
+
+      - name: Build Linux Executable
+        run: |
+          pyinstaller --add-data "bin/img:bin/img" --name "Smoke_Launcher" --windowed main.py
+
+      - name: Upload Linux Executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: Smoke_Launcher-SteamDeck
+          path: dist/Smoke_Launcher/*  # Includes _internal
