@@ -13,10 +13,10 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.6'
+          python-version: '3.13.2'
 
       - name: Install Dependencies
-        run: pip install -r src/requirements.txt pyinstaller
+        run: pip install -r requirements.txt pyinstaller
 
       - name: Build Windows Executable
         run: |
@@ -37,13 +37,13 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.6'
+          python-version: '3.13.2'
 
       - name: Install Dependencies
         run: |
           sudo apt update
           sudo apt install -y python3-pyqt5  # Add dependencies if needed
-          pip install -r src/requirements.txt pyinstaller
+          pip install -r requirements.txt pyinstaller
 
       - name: Build Linux Executable
         run: |
