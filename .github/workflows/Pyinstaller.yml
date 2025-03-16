@@ -42,7 +42,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt install -y python3-pyqt5  # Add dependencies if needed
+          sudo apt install -y python3-tk  # Add dependencies if needed
           pip install -r requirements.txt pyinstaller
 
       - name: Build Linux Executable
