@@ -320,6 +320,8 @@ def get_exes(gid):
         for filename in files:
             if filename.endswith(".exe") and filename not in ignore_list:
                 exes.append(os.path.join(root, filename))  # Include full path to the exe file
+            elif filename.lower().endswith((".sh", ".appimage")):
+                exes.append(os.path.join(root, filename))                
     return exes
 
 def delete_download(gid):
@@ -331,17 +333,59 @@ def delete_download(gid):
 
 
 def get_box_art(gid):
+    global CACHE_DIR
     try:
-        # Fetch the game info to get the image metadata
         game_info = fetch_game_info(USERNAME, PASSWORD, gid)
 
-        # Check if 'provider_metadata' exists and contains at least one item
-        provider_metadata = game_info.get('provider_metadata', [])
-        
-        if not provider_metadata or 'cover' not in provider_metadata[0]:
+        # Suche Cover in Reihenfolge: provider_metadata → user_metadata → metadata
+        cover_info = None
+        provider_metadata = game_info.get("provider_metadata", [])
+
+        if provider_metadata and isinstance(provider_metadata, list):
+            first_provider = provider_metadata[0]
+            if isinstance(first_provider, dict) and "cover" in first_provider:
+                cover_info = first_provider["cover"]
+
+        if not cover_info and game_info.get("user_metadata", {}).get("cover"):
+            cover_info = game_info["user_metadata"]["cover"]
+
+        if not cover_info and game_info.get("metadata", {}).get("cover"):
+            cover_info = game_info["metadata"]["cover"]
+
+        if not cover_info or "file_path" not in cover_info or "id" not in cover_info:
             print("No cover art found, returning default image.")
-            default_image_path = resource_path("bin/img/not_found.jpg")
-            return default_image_path
+            return resource_path("bin/img/not_found.jpg")
+
+        image_name = cover_info["file_path"].split("/")[-1]
+        image_id = cover_info["id"]
+
+        # Cache-Pfad
+        image_path = os.path.join(CACHE_DIR, image_name)
+        if os.path.exists(image_path):
+            return image_path
+
+        # Vom Server holen
+        media_url = f"{config['SETTINGS'].get('url')}/api/media/{image_id}"
+        headers = {"accept": "image/*"}
+        response = requests.get(media_url, headers=headers, auth=HTTPBasicAuth(USERNAME, PASSWORD))
+
+        if response.status_code == 200:
+            with open(image_path, "wb") as img_file:
+                img_file.write(response.content)
+            return image_path
+        else:
+            print(f"Failed to fetch image. Status: {response.status_code}")
+            return resource_path("bin/img/not_found.jpg")
+
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        return resource_path("bin/img/not_found.jpg")
+
+        
+#        if not provider_metadata or 'cover' not in provider_metadata[0]:
+#            print("No cover art found, returning default image.")
+#            default_image_path = resource_path("bin/img/not_found.jpg")
+#            return default_image_path
         
         # Extract cover info if it exists
         cover_info = provider_metadata[0].get('cover', {})

@@ -258,7 +258,7 @@ class Main(customtkinter.CTk):
                 exe_list = get_exes(game_id) or []
                 exe_selection_dropdown = customtkinter.CTkComboBox(
                     self.game_frame,
-                    values=["Select an EXE"] + exe_list
+                    values=["Select an file"] + exe_list
                 )
                 add_to_library_button = customtkinter.CTkButton(
                     self.game_frame, 
